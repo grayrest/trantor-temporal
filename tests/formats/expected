@@ -1,0 +1,11 @@
+TOML record: at = 07:15:05.250000001 | day = 2026-03-08 | ; decodes back equal: True
+TOML nested record: [outer] |  | [outer.event] | at = 07:15:05.250000001 | day = 2026-03-08 | ; decodes back equal: True
+TOML lists: days = [2026-03-08, 0001-01-01] | times = [07:15:05.250000001, 23:59:59.999999999] | ; decodes back equal: True
+TOML dicts: [days] | a = 2026-03-08 | b = 2026-03-08 |  | [times] | t = 07:15:05.250000001 | ; decodes back equal: True
+TOML hand-written: decoded as 2026-03-08 07:15:05.250000001, on Iso: True
+TOML a time in a date list: Mismatch at [Key("days"), Index(1)]
+TOML a Hebrew date, its calendar dropped: at = 07:15:05.250000001 | day = 2026-03-08 | ; decodes back equal: False
+TOML a year-10000 date: InvalidDate at [Key("day")]
+CSV records: at,day | 07:15:05.250000001,2026-03-08 | 07:15:05.250000001,10000-01-01; decodes back equal: True
+CSV a date-time in a date column: Mismatch at [Index(0), Key("day")]
+a Toml.LocalDate through plain_date_from_fields: 1979-05-27

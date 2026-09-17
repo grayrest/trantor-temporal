@@ -1,0 +1,16 @@
+[package]
+name = "temporal-sweeps"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Not a trantor component: package.toml does not list it, so nothing composes
+# it into a world. It exists to run the host's zoned algorithm against an
+# independent oracle over far more inputs than the Roc gate can afford.
+[dependencies]
+temporal_rs = { version = "=0.2.6", default-features = false, features = ["compiled_data"] }
+timezone_provider = { version = "=0.2.6", default-features = false }
+
+# The sweeps make millions of temporal_rs calls; unoptimised they take minutes.
+[profile.test]
+opt-level = 3

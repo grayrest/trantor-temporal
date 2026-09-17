@@ -1,0 +1,58 @@
+# trantor-temporal — TC39 Temporal-shaped calendar and time-zone arithmetic.
+#
+# An ADD-ON package: it provides no driver, so it cannot be depended on alone.
+# Pair it with a baseline that does:
+#
+#   [deps]
+#   trantor-cli      = { path = "../trantor-cli" }
+#   trantor-temporal = { path = "../trantor-temporal" }
+#
+# It was in trantor-cli, wired and exposed and used by nothing there — the
+# basic-cli shim's `Utc` goes through Clocks, not through this. A datetime
+# library across the C ABI is not what a CLI baseline owes its consumers, so it
+# moved out rather than being carried by everyone.
+#
+# Two surfaces, as the baseline has (D-T1-1): the pure-Roc `Temporal`, which is
+# the one to use, over the primitive `TemporalHost`, which holds no defaults.
+[package]
+name = "trantor-temporal"
+version = "0.1.0"
+exports = ["Temporal", "TemporalHost", "Now", "NowHost"]
+
+[interfaces.temporal]
+# The clock, wired by default but named in its own right: a world's composed
+# wiring says it has one, and a consumer can point it at their own component.
+[interfaces.temporal-now]
+
+# The pure-Roc layer over the hosted one (D-T1-1). `Strftime` is exported by
+# the COMPONENT so `Temporal` can import it, and deliberately absent from the
+# package's exports above: it is an implementation detail, not a surface.
+[components.temporal-lib]
+kind = "roc"
+exports = ["Temporal", "Strftime", "Plain", "Now"]
+
+[components.temporal-host]
+kind = "host"
+lang = "rust"
+exports = ["temporal"]
+
+# Vendors no temporal_rs (H0c): `std::time::SystemTime` and `iana-time-zone`,
+# which is what temporal_rs's own `sys-local` uses underneath.
+[components.now-host]
+kind = "host"
+lang = "rust"
+exports = ["temporal-now"]
+# `iana-time-zone` asks CoreFoundation for the machine's zone on macOS.
+frameworks = ["CoreFoundation"]
+
+[provides]
+temporal = "temporal-host"
+temporal-now = "now-host"
+
+# What `trantor test .` composes this add-on against. Never a dependency of
+# the apps that use it.
+[dev-deps]
+trantor-cli = { path = "../trantor-cli" }
+# tests/formats decodes and encodes the plain types through TOML and CSV. The
+# package itself never imports it: the codecs match the date methods by name.
+trantor-encoding = { path = "../trantor-encoding" }

@@ -1,0 +1,18 @@
+[package]
+name = "temporal-host"
+version = "0.0.0"
+edition = "2021"
+publish = false
+[lib]
+crate-type = ["staticlib", "rlib"]
+[dependencies]
+trantor-abi = "0.0.0"      # generated; the consumer's workspace patches it
+# `compiled_data` alone, NOT the default `sys-local`: the bundled tzdb is what
+# this needs, and sys-local adds a system clock and `iana-time-zone` that it
+# never calls. The clock is `now-host`'s, and leaving the crate out of here
+# keeps each vendored native in exactly one archive (H0c).
+temporal_rs = { version = "=0.2.6", default-features = false, features = ["compiled_data"] }
+# Named directly only for the provider trait's `IsoDateTime` and error type,
+# which temporal_rs does not re-export (exact_provider.rs); the same crate
+# temporal_rs already builds.
+timezone_provider = { version = "=0.2.6", default-features = false }

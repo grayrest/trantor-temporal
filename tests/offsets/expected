@@ -1,0 +1,8 @@
+under an hour west: 2026-03-08T12:00:00-00:30[-00:30]; back: 2026-03-08 12:00:00 -30 min, equal: True
+half an hour east, nanoseconds: 1969-12-31T23:59:59.999999999+05:30[+05:30]; back: 1969-12-31 23:59:59.999999999 330 min, equal: True
+UTC: 2026-03-08T12:00:00+00:00[+00:00]; back: 2026-03-08 12:00:00 0 min, equal: True
+past a day: OutOfRange
+an IANA zone: 2026-03-08T10:40:00-04:00[America/New_York] (-14400 s) -> 2026-03-08 10:40:00 -240 min -> 2026-03-08T10:40:00-04:00[-04:00]; instant kept: True
+New York's LMT: 1850-01-01T12:00:00-04:56[America/New_York] (-17762 s) -> 1850-01-01 12:00:02 -296 min -> 1850-01-01T12:00:02-04:56[-04:56]; instant kept: True
+Monrovia's half minute: 1970-01-01T00:00:00-00:45[Africa/Monrovia] (-2670 s) -> 1969-12-31 23:59:30 -45 min -> 1969-12-31T23:59:30-00:45[-00:45]; instant kept: True
+a Hebrew date's calendar: 2026-03-08T09:00:00+02:00[Asia/Jerusalem][u-ca=hebrew] (7200 s) -> 2026-03-08 09:00:00 120 min -> 2026-03-08T09:00:00+02:00[+02:00]; instant kept: True

@@ -1,0 +1,18 @@
+# roc:temporal-now — the CLOCK, as a capability rather than an ambient one.
+#
+# Reading the wall clock and the machine's configured time zone is ambient
+# authority, and this project routes that through interfaces everywhere else
+# (P4/P5): a world's `[wiring]` says it has one. Keeping it out of
+# `temporal-host` is the whole point — a datetime library should not silently
+# grant a clock.
+#
+# It vendors NO temporal_rs (H0c): the instant is `std::time::SystemTime` and
+# the zone is `iana-time-zone`, which is what temporal_rs's own `sys-local`
+# feature uses underneath.
+module = "NowHost"
+[[hosted]]
+leaf = "epoch_ns!"
+symbol_stem = "epoch_ns"
+[[hosted]]
+leaf = "system_time_zone_id!"
+symbol_stem = "system_time_zone_id"

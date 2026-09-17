@@ -1,0 +1,116 @@
+# roc:temporal — the HOSTED layer (D-T1-1). Primitive: every option is an
+# explicit argument, no defaults. The pure-Roc `Temporal` module over this one
+# carries the defaults, formatters and parsers.
+#
+# Value types (PlainDate, PlainTime, Duration) are plain records of ISO fields,
+# a Calendar is a tag and a TimeZone is its identifier; ZonedDateTime is the one
+# resource (P5). Opt-in per world; the host is the sole vendor of temporal_rs
+# (H0c).
+#
+# LEAF ORDER IS LOAD-BEARING. Glue names a result type after the FIRST leaf that
+# declares its shape and reuses that name for every structurally identical one —
+# `zdt_with_time_zone!` and `zdt_start_of_day!` both land on
+# `TemporalHostZdtFromEpochNsResult` (B7 finding 2). Reordering these entries
+# renames host types. Rebuild and re-read abi/src/generated.rs if you must.
+module = "TemporalHost"
+[[resources]]
+name = "ZonedDateTime"
+[[hosted]]
+leaf = "calendar_from_id!"
+symbol_stem = "calendar_from_id"
+[[hosted]]
+leaf = "calendar_id!"
+symbol_stem = "calendar_id"
+[[hosted]]
+leaf = "time_zone_from_id!"
+symbol_stem = "time_zone_from_id"
+[[hosted]]
+leaf = "date_add!"
+symbol_stem = "date_add"
+[[hosted]]
+leaf = "date_until!"
+symbol_stem = "date_until"
+[[hosted]]
+leaf = "date_from_str!"
+symbol_stem = "date_from_str"
+[[hosted]]
+leaf = "zdt_from_epoch_ns!"
+symbol_stem = "zdt_from_epoch_ns"
+[[hosted]]
+leaf = "zdt_from_wall_clock!"
+symbol_stem = "zdt_from_wall_clock"
+[[hosted]]
+leaf = "zdt_from_str!"
+symbol_stem = "zdt_from_str"
+[[hosted]]
+leaf = "zdt_epoch_ns!"
+symbol_stem = "zdt_epoch_ns"
+[[hosted]]
+leaf = "zdt_with_time_zone!"
+symbol_stem = "zdt_with_time_zone"
+[[hosted]]
+leaf = "zdt_calendar!"
+symbol_stem = "zdt_calendar"
+[[hosted]]
+leaf = "zdt_plain_date!"
+symbol_stem = "zdt_plain_date"
+[[hosted]]
+leaf = "zdt_plain_time!"
+symbol_stem = "zdt_plain_time"
+[[hosted]]
+leaf = "zdt_offset_seconds!"
+symbol_stem = "zdt_offset_seconds"
+[[hosted]]
+leaf = "zdt_to_str!"
+symbol_stem = "zdt_to_str"
+[[hosted]]
+leaf = "zdt_time_zone!"
+symbol_stem = "zdt_time_zone"
+[[hosted]]
+leaf = "zdt_equals!"
+symbol_stem = "zdt_equals"
+[[hosted]]
+leaf = "zdt_add!"
+symbol_stem = "zdt_add"
+[[hosted]]
+leaf = "zdt_until!"
+symbol_stem = "zdt_until"
+[[hosted]]
+leaf = "zdt_start_of_day!"
+symbol_stem = "zdt_start_of_day"
+[[hosted]]
+leaf = "duration_from_str!"
+symbol_stem = "duration_from_str"
+[[hosted]]
+leaf = "date_fields!"
+symbol_stem = "date_fields"
+[[hosted]]
+leaf = "date_until_rounded!"
+symbol_stem = "date_until_rounded"
+[[hosted]]
+leaf = "zdt_with_plain_date!"
+symbol_stem = "zdt_with_plain_date"
+[[hosted]]
+leaf = "zdt_with_calendar!"
+symbol_stem = "zdt_with_calendar"
+[[hosted]]
+leaf = "zdt_until_rounded!"
+symbol_stem = "zdt_until_rounded"
+[[hosted]]
+leaf = "zdt_round!"
+symbol_stem = "zdt_round"
+[[hosted]]
+leaf = "zdt_hours_in_day!"
+symbol_stem = "zdt_hours_in_day"
+[[hosted]]
+leaf = "zdt_transition!"
+symbol_stem = "zdt_transition"
+[[hosted]]
+leaf = "duration_round!"
+symbol_stem = "duration_round"
+[[hosted]]
+leaf = "duration_total!"
+symbol_stem = "duration_total"
+[[hosted]]
+leaf = "duration_compare!"
+symbol_stem = "duration_compare"
