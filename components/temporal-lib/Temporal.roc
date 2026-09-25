@@ -210,7 +210,7 @@ Temporal :: [].{
 
 		## Decodes from any format with the date methods (trantor-encoding's TOML
 		## and CSV) onto `Iso`, with no dependency on one (D-S3-22).
-		parser_for : format -> (state -> Try({ value : PlainDate, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str }), ..]))
+		parser_for : format -> (state -> Try({ value : PlainDate, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str })]))
 			where [format.parse_local_date : format, state -> Try({ value : TemporalPlain.Date, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str })])]
 		parser_for = |format| |state| {
 			parsed = format.parse_local_date(state) ? |Mismatch(problem)| Mismatch(problem)
@@ -346,7 +346,7 @@ Temporal :: [].{
 		rec = |t| { hour: t.hour, minute: t.minute, second: t.second, millisecond: t.millisecond, microsecond: t.microsecond, nanosecond: t.nanosecond }
 
 		## Decodes from any format with the date methods, as `PlainDate` does.
-		parser_for : format -> (state -> Try({ value : PlainTime, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str }), ..]))
+		parser_for : format -> (state -> Try({ value : PlainTime, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str })]))
 			where [format.parse_local_time : format, state -> Try({ value : TemporalPlain.Time, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str })])]
 		parser_for = |format| |state| {
 			parsed = format.parse_local_time(state) ? |Mismatch(problem)| Mismatch(problem)
