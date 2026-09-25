@@ -1,6 +1,6 @@
 import TemporalHost
-import Strftime
-import Plain
+import TemporalStrftime
+import TemporalPlain
 
 ## TC39 Temporal-shaped calendar and time-zone arithmetic.
 ##
@@ -21,10 +21,10 @@ Temporal :: [].{
 	Overflow : TemporalHost.Overflow
 	Disambiguation : TemporalHost.Disambiguation
 	Err : TemporalHost.Err
-	ParseErr : Strftime.Err
+	ParseErr : TemporalStrftime.Err
 	## `Before`/`Same`/`After` rather than the web's -1/0/1: a tag says which
 	## way round it is without anyone recalling the convention.
-	Order : Plain.Order
+	Order : TemporalPlain.Order
 	CalendarFields : TemporalHost.CalendarFields
 	RoundingMode : TemporalHost.RoundingMode
 	Direction : TemporalHost.Direction
@@ -39,7 +39,7 @@ Temporal :: [].{
 	## The host's `Transition` carries a raw handle; this one carries the type
 	## the rest of the package speaks, so a caller can chain off `At(z)`.
 	Transition : [NoTransition, At(ZonedDateTime)]
-	Sign : Plain.Sign
+	Sign : TemporalPlain.Sign
 
 
 	## `Duration.negate`: every sign flipped, saturating at I64's limit.
@@ -104,9 +104,9 @@ Temporal :: [].{
 	## An offset date-time, as the date methods decode one, as a value in the
 	## fixed-offset zone it names (`-00:30`), on `Iso`: an instant, not a place
 	## (D-S3-25). A fixed offset has no gaps or overlaps to resolve.
-	zoned_from_offset! : { date : Plain.Date, time : Plain.Time, offset : Plain.Offset } => Try(ZonedDateTime, Err)
+	zoned_from_offset! : { date : TemporalPlain.Date, time : TemporalPlain.Time, offset : TemporalPlain.Offset } => Try(ZonedDateTime, Err)
 	zoned_from_offset! = |moment|
-		TemporalHost.zdt_from_wall_clock!(moment.date, moment.time, Plain.offset_zone_id(moment.offset), Iso, Reject).map_ok(ZonedDateTime.wrap)
+		TemporalHost.zdt_from_wall_clock!(moment.date, moment.time, TemporalPlain.offset_zone_id(moment.offset), Iso, Reject).map_ok(ZonedDateTime.wrap)
 
 	## IXDTF. A string carrying an offset that disagrees with its zone is an
 	## error rather than a silent preference for one of them (D-T1-12).
@@ -147,7 +147,7 @@ Temporal :: [].{
 	## which is what a test can pin.
 	date_parse_in : Str, Str, I32 -> Try(PlainDate, ParseErr)
 	date_parse_in = |input, pattern, default_year|
-		match Strftime.parse_fields(input, pattern, default_year) {
+		match TemporalStrftime.parse_fields(input, pattern, default_year) {
 			Err(e) => Err(e)
 			Ok(f) =>
 				if !f.had_date {
@@ -164,7 +164,7 @@ Temporal :: [].{
 	## `BadPattern: no year in the pattern`.
 	time_parse : Str, Str -> Try(PlainTime, ParseErr)
 	time_parse = |input, pattern|
-		match Strftime.parse_fields(input, pattern, 1970) {
+		match TemporalStrftime.parse_fields(input, pattern, 1970) {
 			Err(e) => Err(e)
 			Ok(f) =>
 				if !f.had_time {
@@ -185,7 +185,7 @@ Temporal :: [].{
 		}
 
 	is_leap_year : I32 -> Bool
-	is_leap_year = |y| Strftime.is_leap(y)
+	is_leap_year = |y| TemporalStrftime.is_leap(y)
 
 	## A calendar date, as ISO fields. Nominal so that it can carry the operations
 	## that belong to it — `jan31.add!(...)` rather than `Temporal.add!(jan31, ...)`
@@ -211,7 +211,7 @@ Temporal :: [].{
 		## Decodes from any format with the date methods (trantor-encoding's TOML
 		## and CSV) onto `Iso`, with no dependency on one (D-S3-22).
 		parser_for : format -> (state -> Try({ value : PlainDate, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str }), ..]))
-			where [format.parse_local_date : format, state -> Try({ value : Plain.Date, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str })])]
+			where [format.parse_local_date : format, state -> Try({ value : TemporalPlain.Date, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str })])]
 		parser_for = |format| |state| {
 			parsed = format.parse_local_date(state) ? |Mismatch(problem)| Mismatch(problem)
 			Ok({ value: PlainDate.lift(parsed.value, Iso), rest: parsed.rest })
@@ -219,7 +219,7 @@ Temporal :: [].{
 
 		## Encodes the ISO fields; the calendar is dropped (D-S3-23).
 		encoder_for : encoder -> (PlainDate, state -> Try(state, err))
-			where [encoder.encode_local_date : encoder, Plain.Date, state -> Try(state, err)]
+			where [encoder.encode_local_date : encoder, TemporalPlain.Date, state -> Try(state, err)]
 		encoder_for = |encoder| |d, state| encoder.encode_local_date(d.rec(), state)
 
 		## TC39's `equals`: the same ISO day AND the same calendar.
@@ -229,8 +229,8 @@ Temporal :: [].{
 		## ISO fields order lexicographically, so this ignores the calendar, as
 		## TC39's `PlainDate.compare` does: a Hebrew and an ISO date naming the
 		## same day are `Same` here and not `==`.
-		compare : PlainDate, PlainDate -> Plain.Order
-		compare = |a, b| Plain.compare_date(a.rec(), b.rec())
+		compare : PlainDate, PlainDate -> TemporalPlain.Order
+		compare = |a, b| TemporalPlain.compare_date(a.rec(), b.rec())
 
 		# ---- arithmetic ----
 
@@ -302,7 +302,7 @@ Temporal :: [].{
 		day_of_week : PlainDate -> Try(U8, Err)
 		day_of_week = |d|
 			if date_exists(d.year, d.month, d.day) {
-				Ok(Strftime.day_of_week(d.year, d.month, d.day))
+				Ok(TemporalStrftime.day_of_week(d.year, d.month, d.day))
 			} else {
 				Err(OutOfRange("${d.year.to_str()}-${d.month.to_str()}-${d.day.to_str()} is not a date in Temporal's range"))
 			}
@@ -312,7 +312,7 @@ Temporal :: [].{
 		iso_day_of_year : PlainDate -> Try(U16, Err)
 		iso_day_of_year = |d|
 			if date_exists(d.year, d.month, d.day) {
-				Ok(Strftime.day_of_year(d.year, d.month, d.day))
+				Ok(TemporalStrftime.day_of_year(d.year, d.month, d.day))
 			} else {
 				Err(OutOfRange("${d.year.to_str()}-${d.month.to_str()}-${d.day.to_str()} is not a date in Temporal's range"))
 			}
@@ -327,13 +327,13 @@ Temporal :: [].{
 		## `calendarName: "auto"` prints it, so it parses back on that calendar
 		## (D-T2-32).
 		to_str : PlainDate -> Str
-		to_str = |d| "${iso_year(d.year)}${Strftime.format(date_parts(d.rec()), "-%m-%d")}${calendar_annotation(d.cal)}"
+		to_str = |d| "${iso_year(d.year)}${TemporalStrftime.format(date_parts(d.rec()), "-%m-%d")}${calendar_annotation(d.cal)}"
 
 		## strftime (D-T1-9). `%Y %y %m %d %e %b %B %a %A %j %H %I %p %M %S %L %N
 		## %F %T %% %n %t`; `%z %:z %Z` need a zone, so on a plain date they render
 		## literally. An unknown directive renders literally too.
 		format : PlainDate, Str -> Str
-		format = |d, pattern| Strftime.format(date_parts(d.rec()), pattern)
+		format = |d, pattern| TemporalStrftime.format(date_parts(d.rec()), pattern)
 	}
 
 	## A time of day, as ISO fields. Every field defaults to 0 (`??` in the
@@ -347,28 +347,28 @@ Temporal :: [].{
 
 		## Decodes from any format with the date methods, as `PlainDate` does.
 		parser_for : format -> (state -> Try({ value : PlainTime, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str }), ..]))
-			where [format.parse_local_time : format, state -> Try({ value : Plain.Time, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str })])]
+			where [format.parse_local_time : format, state -> Try({ value : TemporalPlain.Time, rest : state }, [Mismatch({ path : List([Key(Str), Index(U64)]), expected : Str })])]
 		parser_for = |format| |state| {
 			parsed = format.parse_local_time(state) ? |Mismatch(problem)| Mismatch(problem)
 			Ok({ value: PlainTime.new(parsed.value), rest: parsed.rest })
 		}
 
 		encoder_for : encoder -> (PlainTime, state -> Try(state, err))
-			where [encoder.encode_local_time : encoder, Plain.Time, state -> Try(state, err)]
+			where [encoder.encode_local_time : encoder, TemporalPlain.Time, state -> Try(state, err)]
 		encoder_for = |encoder| |t, state| encoder.encode_local_time(t.rec(), state)
 
 		is_eq : PlainTime, PlainTime -> Bool
-		is_eq = |a, b| Plain.compare_time(a.rec(), b.rec()) == Same
+		is_eq = |a, b| TemporalPlain.compare_time(a.rec(), b.rec()) == Same
 
-		compare : PlainTime, PlainTime -> Plain.Order
-		compare = |a, b| Plain.compare_time(a.rec(), b.rec())
+		compare : PlainTime, PlainTime -> TemporalPlain.Order
+		compare = |a, b| TemporalPlain.compare_time(a.rec(), b.rec())
 
 		## ISO 8601 as TC39's `toString` prints it: `09:30:00`, with the fraction
 		## of a second when there is one and no trailing zeros — `09:30:00.5`,
 		## `09:30:00.123456789` (D-T2-28).
 		to_str : PlainTime -> Str
 		to_str = |t| {
-			whole = Strftime.format(time_parts(t.rec()), "%H:%M:%S")
+			whole = TemporalStrftime.format(time_parts(t.rec()), "%H:%M:%S")
 			ns = sub_second_nanos(t.rec())
 			digits = ns.to_str()
 			length = Str.count_utf8_bytes(digits)
@@ -388,7 +388,7 @@ Temporal :: [].{
 		}
 
 		format : PlainTime, Str -> Str
-		format = |t, pattern| Strftime.format(time_parts(t.rec()), pattern)
+		format = |t, pattern| TemporalStrftime.format(time_parts(t.rec()), pattern)
 	}
 
 	## An amount of time, as the ten fields TC39 names. Every field defaults to 0,
@@ -426,21 +426,21 @@ Temporal :: [].{
 			}
 
 		is_zero : Duration -> Bool
-		is_zero = |d| Plain.duration_is_zero(d.rec())
+		is_zero = |d| TemporalPlain.duration_is_zero(d.rec())
 
 		## Temporal requires every field to share a sign, so the first non-zero one
 		## settles it.
-		sign : Duration -> Plain.Sign
-		sign = |d| Plain.duration_sign(d.rec())
+		sign : Duration -> TemporalPlain.Sign
+		sign = |d| TemporalPlain.duration_sign(d.rec())
 
 		valid : Duration -> Bool
-		valid = |d| Plain.duration_valid(d.rec())
+		valid = |d| TemporalPlain.duration_valid(d.rec())
 
 		## `Err(MixedSigns)` for a record whose fields disagree in sign — TC39
 		## refuses to construct one, and this refuses to print one. `Err(TooLarge)`
 		## where the seconds and sub-second fields cannot be carried into an I64.
 		to_str : Duration -> Try(Str, [MixedSigns, TooLarge])
-		to_str = |d| Plain.duration_to_str(d.rec())
+		to_str = |d| TemporalPlain.duration_to_str(d.rec())
 
 		## A duration in calendar units has no fixed length until it is anchored to
 		## a date — "one month" is 28 to 31 days — so these take a `RelativeTo`.
@@ -454,7 +454,7 @@ Temporal :: [].{
 		total! : Duration, Unit, RelativeTo => Try(F64, Err)
 		total! = |d, u, rel| TemporalHost.duration_total!(d.rec(), u, lower_relative(rel), calendar_of(rel))
 
-		compare! : Duration, Duration, RelativeTo => Try(Plain.Order, Err)
+		compare! : Duration, Duration, RelativeTo => Try(TemporalPlain.Order, Err)
 		compare! = |a, b, rel|
 			TemporalHost.duration_compare!(a.rec(), b.rec(), lower_relative(rel), calendar_of(rel)).map_ok(
 				|n| if n == 0 { Same } else if n < 0 { Before } else { After },
@@ -496,10 +496,10 @@ Temporal :: [].{
 		## wall clock recomputed at it, so the instant is kept and the wall clock
 		## absorbs what rounding removed (D-S3-25, D-S3-37.9). The zone's name
 		## and the calendar are dropped.
-		to_offset_datetime! : ZonedDateTime => { date : Plain.Date, time : Plain.Time, offset : Plain.Offset }
+		to_offset_datetime! : ZonedDateTime => { date : TemporalPlain.Date, time : TemporalPlain.Time, offset : TemporalPlain.Offset }
 		to_offset_datetime! = |z| {
-			offset = Plain.offset_from_seconds(TemporalHost.zdt_offset_seconds!(z.handle()))
-			wall = Plain.wall_clock_at(TemporalHost.zdt_epoch_ns!(z.handle()), offset)
+			offset = TemporalPlain.offset_from_seconds(TemporalHost.zdt_offset_seconds!(z.handle()))
+			wall = TemporalPlain.wall_clock_at(TemporalHost.zdt_epoch_ns!(z.handle()), offset)
 			{ date: wall.date, time: wall.time, offset }
 		}
 
@@ -590,7 +590,7 @@ Temporal :: [].{
 
 		## Ordering by instant alone, which is the question "which happened first".
 		## `equals!` is the stricter one: same instant, zone AND calendar.
-		compare! : ZonedDateTime, ZonedDateTime => Plain.Order
+		compare! : ZonedDateTime, ZonedDateTime => TemporalPlain.Order
 		compare! = |a, b| {
 			x = TemporalHost.zdt_epoch_ns!(a.handle())
 			y = TemporalHost.zdt_epoch_ns!(b.handle())
@@ -611,7 +611,7 @@ Temporal :: [].{
 			t = TemporalHost.zdt_plain_time!(z.handle())
 			zone = TemporalHost.zdt_time_zone!(z.handle())?
 			Ok(
-				Strftime.format(
+				TemporalStrftime.format(
 					{
 						year: d.year,
 						month: d.month,
@@ -720,7 +720,7 @@ iso_year = |y| {
 ## day, from -271821-04-19 to +275760-09-13.
 date_exists : I32, U8, U8 -> Bool
 date_exists = |year, month, day| {
-	lengths = [31, if Strftime.is_leap(year) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+	lengths = [31, if TemporalStrftime.is_leap(year) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 	in_month = month >= 1 and month <= 12 and day >= 1 and day <= (List.get(lengths, U8.to_u64(month) - 1) ?? 0)
 	after_min = year > -271821 or (year == -271821 and (month > 4 or (month == 4 and day >= 19)))
 	before_max = year < 275760 or (year == 275760 and (month < 9 or (month == 9 and day <= 13)))
@@ -753,7 +753,7 @@ lift_transition = |t|
 		At(h) => At(Temporal.ZonedDateTime.wrap(h))
 	}
 
-date_parts : TemporalHost.PlainDate -> Strftime.Parts
+date_parts : TemporalHost.PlainDate -> TemporalStrftime.Parts
 date_parts = |d| {
 	year: d.year,
 	month: d.month,
@@ -785,7 +785,7 @@ nanos_in_second = |t| {
 sub_second_nanos : TemporalHost.PlainTime -> U64
 sub_second_nanos = |t| U16.to_u64(t.millisecond) * 1_000_000 + U16.to_u64(t.microsecond) * 1_000 + U16.to_u64(t.nanosecond)
 
-time_parts : TemporalHost.PlainTime -> Strftime.Parts
+time_parts : TemporalHost.PlainTime -> TemporalStrftime.Parts
 time_parts = |t| {
 	year: 1970,
 	month: 1,

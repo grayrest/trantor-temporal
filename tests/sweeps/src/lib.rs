@@ -19,6 +19,9 @@ pub mod plain_dates;
 #[path = "../../../components/temporal-host/src/durations.rs"]
 pub mod durations;
 
+#[path = "../../../components/temporal-host/src/zone_memo.rs"]
+pub mod zone_memo;
+
 pub mod icu_reference;
 pub mod oracle;
 pub mod oracle_calendars;

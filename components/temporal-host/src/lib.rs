@@ -28,8 +28,10 @@ mod durations;
 mod exact_provider;
 mod plain_dates;
 mod transition;
+mod zone_memo;
 mod zoned_ops;
 use exact_provider::EXACT;
+use zone_memo::zone_of;
 use temporal_rs::{Calendar, Duration, PlainDate, PlainTime, TemporalError, TimeZone, ZonedDateTime};
 
 type DateRec = AnonStruct1af1a0fdd5cc23ac;
@@ -137,28 +139,6 @@ fn cal_tag(c: &Calendar) -> CalArg {
         "roc" => C::Roc,
         _ => C::Iso,
     }
-}
-
-thread_local! {
-    /// Identifier -> resolved zone. A temporal_rs `TimeZone` holds two resolved
-    /// indices into the tzdb; re-resolving one per call measured 6.3x the cost
-    /// of the operation it enables, so this memo is part of the design and not
-    /// an optimisation (D-T2-6). Thread-local rather than locked: a TimeZone is
-    /// 24 bytes and `Copy`, so duplicating the table per thread is cheaper than
-    /// contending for one.
-    static ZONES: core::cell::RefCell<std::collections::HashMap<String, TimeZone>> =
-        core::cell::RefCell::new(std::collections::HashMap::new());
-}
-
-fn zone_of(id: &str) -> Result<TimeZone, TemporalError> {
-    ZONES.with(|c| {
-        if let Some(z) = c.borrow().get(id) {
-            return Ok(*z);
-        }
-        let z = TimeZone::try_from_str(id)?;
-        c.borrow_mut().insert(id.to_string(), z);
-        Ok(z)
-    })
 }
 
 /// Resolve an owned zone identifier. Decrefs the argument on EVERY path,

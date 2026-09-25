@@ -4,7 +4,7 @@
 ## Types are spelled structurally rather than imported so this module stays free
 ## of the hosted layer: a `PlainDate` IS `{ year, month, day }` and nothing
 ## about these functions needs a host.
-Plain :: [].{
+TemporalPlain :: [].{
 	Date : { year : I32, month : U8, day : U8 }
 	Time : { hour : U8, minute : U8, second : U8, millisecond : U16, microsecond : U16, nanosecond : U16 }
 	Dur : {
@@ -137,9 +137,9 @@ Plain :: [].{
 	}
 }
 
-rendered : Plain.Dur -> Str
+rendered : TemporalPlain.Dur -> Str
 rendered = |d| {
-	neg = Plain.duration_sign(d) == Negative
+	neg = TemporalPlain.duration_sign(d) == Negative
 	# Carry each unit to whole seconds BEFORE scaling: `ms * 1_000_000`
 	# overflows I64 past ~292 years, and `zdt_until_in!(.., Millisecond)`
 	# hands back durations well past that.
@@ -173,7 +173,7 @@ rendered = |d| {
 
 ## Whether `rendered`'s carry can be done without overflowing I64. Everything
 ## is compared against the headroom left, never summed first.
-seconds_fit : Plain.Dur -> Bool
+seconds_fit : TemporalPlain.Dur -> Bool
 seconds_fit = |d| {
 	max = 9223372036854775807
 	carried = abs(d.milliseconds) // 1_000 + abs(d.microseconds) // 1_000_000 + abs(d.nanoseconds) // 1_000_000_000
@@ -194,7 +194,7 @@ compare_i64 = |a, b| if a == b { Same } else { order(a < b) }
 abs : I64 -> I64
 abs = |v| if v >= 0 { v } else if v + 9223372036854775807 < 0 { 9223372036854775807 } else { 0 - v }
 
-time_nanos : Plain.Time -> I64
+time_nanos : TemporalPlain.Time -> I64
 time_nanos = |t|
 	U8.to_i64(t.hour) * 3_600_000_000_000
 	+ U8.to_i64(t.minute) * 60_000_000_000
@@ -258,7 +258,7 @@ floor_div = |n, d| {
 
 ## The proleptic Gregorian date `days` after 1970-01-01, with years counted
 ## from a March 1 so the leap day falls at the end.
-civil_from_days : I64 -> Plain.Date
+civil_from_days : I64 -> TemporalPlain.Date
 civil_from_days = |days| {
 	shifted = days + epoch_shift_days
 	era = (if shifted >= 0 { shifted } else { shifted - days_per_era + 1 }) // days_per_era
@@ -273,7 +273,7 @@ civil_from_days = |days| {
 }
 
 ## Nanoseconds into a day, 0 up to a day, as a time.
-time_from_nanos : I128 -> Plain.Time
+time_from_nanos : I128 -> TemporalPlain.Time
 time_from_nanos = |ns| {
 	field = |unit, size| I128.to_u64_wrap((ns // unit) % size)
 	{
@@ -286,20 +286,20 @@ time_from_nanos = |ns| {
 	}
 }
 
-midnight : Plain.Time
+midnight : TemporalPlain.Time
 midnight = { hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0, nanosecond: 0 }
 
-expect Plain.offset_zone_id({ minutes: -30 }) == "-00:30"
-expect Plain.offset_zone_id({ minutes: 330 }) == "+05:30"
-expect Plain.offset_zone_id({ minutes: 0 }) == "+00:00"
-expect Plain.offset_from_seconds(-17_762) == { minutes: -296 }
-expect Plain.offset_from_seconds(-2_670) == { minutes: -45 }
-expect Plain.offset_from_seconds(1_172) == { minutes: 20 }
-expect Plain.offset_from_seconds(29) == { minutes: 0 }
-expect Plain.wall_clock_at(0, { minutes: 0 }) == { date: { year: 1970, month: 1, day: 1 }, time: midnight }
-expect Plain.wall_clock_at(-1, { minutes: 0 }) == { date: { year: 1969, month: 12, day: 31 }, time: { hour: 23, minute: 59, second: 59, millisecond: 999, microsecond: 999, nanosecond: 999 } }
-expect Plain.wall_clock_at(0, { minutes: -30 }) == { date: { year: 1969, month: 12, day: 31 }, time: { ..midnight, hour: 23, minute: 30 } }
-expect Plain.wall_clock_at(951_782_400_000_000_000, { minutes: 0 }).date == { year: 2000, month: 2, day: 29 }
-expect Plain.wall_clock_at(-62_135_596_800_000_000_000, { minutes: 0 }).date == { year: 1, month: 1, day: 1 }
-expect Plain.wall_clock_at(-62_198_755_200_000_000_000, { minutes: 0 }).date == { year: -1, month: 1, day: 1 }
-expect Plain.wall_clock_at(253_402_300_800_000_000_000, { minutes: 0 }).date == { year: 10000, month: 1, day: 1 }
+expect TemporalPlain.offset_zone_id({ minutes: -30 }) == "-00:30"
+expect TemporalPlain.offset_zone_id({ minutes: 330 }) == "+05:30"
+expect TemporalPlain.offset_zone_id({ minutes: 0 }) == "+00:00"
+expect TemporalPlain.offset_from_seconds(-17_762) == { minutes: -296 }
+expect TemporalPlain.offset_from_seconds(-2_670) == { minutes: -45 }
+expect TemporalPlain.offset_from_seconds(1_172) == { minutes: 20 }
+expect TemporalPlain.offset_from_seconds(29) == { minutes: 0 }
+expect TemporalPlain.wall_clock_at(0, { minutes: 0 }) == { date: { year: 1970, month: 1, day: 1 }, time: midnight }
+expect TemporalPlain.wall_clock_at(-1, { minutes: 0 }) == { date: { year: 1969, month: 12, day: 31 }, time: { hour: 23, minute: 59, second: 59, millisecond: 999, microsecond: 999, nanosecond: 999 } }
+expect TemporalPlain.wall_clock_at(0, { minutes: -30 }) == { date: { year: 1969, month: 12, day: 31 }, time: { ..midnight, hour: 23, minute: 30 } }
+expect TemporalPlain.wall_clock_at(951_782_400_000_000_000, { minutes: 0 }).date == { year: 2000, month: 2, day: 29 }
+expect TemporalPlain.wall_clock_at(-62_135_596_800_000_000_000, { minutes: 0 }).date == { year: 1, month: 1, day: 1 }
+expect TemporalPlain.wall_clock_at(-62_198_755_200_000_000_000, { minutes: 0 }).date == { year: -1, month: 1, day: 1 }
+expect TemporalPlain.wall_clock_at(253_402_300_800_000_000_000, { minutes: 0 }).date == { year: 10000, month: 1, day: 1 }

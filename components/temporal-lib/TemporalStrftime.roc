@@ -5,7 +5,7 @@
 ## fields (D-T1-2), weekday and day-of-year are computable here rather than
 ## across the C ABI, which is what lets `date_format` be a function and not an
 ## effect.
-Strftime :: [].{
+TemporalStrftime :: [].{
 	## Everything any directive can need. Date-only and time-only callers zero
 	## the rest and leave `has_zone` false; `%z`/`%Z` then render literally,
 	## since a plain date has no zone to speak of.
@@ -254,7 +254,7 @@ offset_str = |seconds, colon| {
 put : List(U8), Str -> List(U8)
 put = |out, s| List.concat(out, Str.to_utf8(s))
 
-emit : List(U8), Strftime.Parts, U8, Bool -> List(U8)
+emit : List(U8), TemporalStrftime.Parts, U8, Bool -> List(U8)
 emit = |out, p, directive, colon|
 	if directive == 'Y' {
 		put(out, year_str(p.year))
@@ -271,11 +271,11 @@ emit = |out, p, directive, colon|
 	} else if directive == 'B' {
 		put(out, name_at(month_names, slot(p.month, 12), Bool.False))
 	} else if directive == 'a' {
-		put(out, name_at(day_names, slot(Strftime.day_of_week(p.year, p.month, p.day), 7), Bool.True))
+		put(out, name_at(day_names, slot(TemporalStrftime.day_of_week(p.year, p.month, p.day), 7), Bool.True))
 	} else if directive == 'A' {
-		put(out, name_at(day_names, slot(Strftime.day_of_week(p.year, p.month, p.day), 7), Bool.False))
+		put(out, name_at(day_names, slot(TemporalStrftime.day_of_week(p.year, p.month, p.day), 7), Bool.False))
 	} else if directive == 'j' {
-		put(out, pad(U16.to_u64(Strftime.day_of_year(p.year, p.month, p.day)), 3))
+		put(out, pad(U16.to_u64(TemporalStrftime.day_of_year(p.year, p.month, p.day)), 3))
 	} else if directive == 'H' {
 		put(out, pad(U8.to_u64(p.hour), 2))
 	} else if directive == 'I' {
@@ -544,7 +544,7 @@ literal = |st, want|
 ## not name and REPORTING what it did. Nothing here fails for a missing year or
 ## date: a time-only pattern is a legitimate thing to write, and the caller
 ## decides what it requires. `require_date` is where a date parse insists.
-gather : List(Field), I32 -> Try(Strftime.Fields, Strftime.Err)
+gather : List(Field), I32 -> Try(TemporalStrftime.Fields, TemporalStrftime.Err)
 gather = |got, default_year| {
 	seen = |pick| List.fold(got, Err(Missing), |acc, f| match pick(f) { Ok(v) => Ok(v), Err(_) => acc })
 	year = seen(|f| match f { FYear(v) => Ok(v), _ => Err(Missing) })
@@ -656,7 +656,7 @@ gather_once = |default_year, year, month, day, yday, hour, minute, second, milli
 					if !md.dated {
 						Ok(fields)
 					} else {
-						actual = Strftime.day_of_week(y, md.month, md.day)
+						actual = TemporalStrftime.day_of_week(y, md.month, md.day)
 						if w == actual {
 							Ok(fields)
 						} else {
@@ -670,7 +670,7 @@ gather_once = |default_year, year, month, day, yday, hour, minute, second, milli
 
 ## A date parse insists on what `gather` is content to default. The messages are
 ## the ones `parse` has always given.
-require_date : Try(Strftime.Fields, Strftime.Err), List(Field) -> Try(Strftime.Parts, Strftime.Err)
+require_date : Try(TemporalStrftime.Fields, TemporalStrftime.Err), List(Field) -> Try(TemporalStrftime.Parts, TemporalStrftime.Err)
 require_date = |res, _got|
 	match res {
 		Err(e) => Err(e)
@@ -684,9 +684,9 @@ require_date = |res, _got|
 			}
 	}
 
-from_day_of_year : I32, U16 -> Try({ month : U8, day : U8 }, Strftime.Err)
+from_day_of_year : I32, U16 -> Try({ month : U8, day : U8 }, TemporalStrftime.Err)
 from_day_of_year = |year, n| {
-	lengths = [31, if Strftime.is_leap(year) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+	lengths = [31, if TemporalStrftime.is_leap(year) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 	found = List.fold(
 		lengths,
 		{ month: 0, left: U16.to_i32(n), done: Bool.False, day: 0 },
@@ -716,7 +716,7 @@ from_day_of_year = |year, n| {
 
 ## This compiler has no record-update syntax (see `Field` above), so a helper
 ## per shape beats respelling eleven fields in every expect.
-plain_dt : I32, U8, U8, U8, U8, U8 -> Strftime.Parts
+plain_dt : I32, U8, U8, U8, U8, U8 -> TemporalStrftime.Parts
 plain_dt = |y, mo, d, h, mi, s| {
 	year: y,
 	month: mo,
@@ -731,11 +731,11 @@ plain_dt = |y, mo, d, h, mi, s| {
 	has_zone: Bool.False,
 }
 
-plain_date : I32, U8, U8 -> Strftime.Parts
+plain_date : I32, U8, U8 -> TemporalStrftime.Parts
 plain_date = |y, mo, d| plain_dt(y, mo, d, 0, 0, 0)
 
 ## 2024-03-05 14:07:09 with sub-second fields, for %L and %N.
-fractional : U16, U32 -> Strftime.Parts
+fractional : U16, U32 -> TemporalStrftime.Parts
 fractional = |ms, ns| {
 	year: 2024,
 	month: 3,
@@ -751,7 +751,7 @@ fractional = |ms, ns| {
 }
 
 ## The same instant, but carrying a zone, for %z/%:z/%Z.
-zoned : I64, Str -> Strftime.Parts
+zoned : I64, Str -> TemporalStrftime.Parts
 zoned = |offset, name| {
 	year: 2024,
 	month: 3,
@@ -768,187 +768,187 @@ zoned = |offset, name| {
 
 # -- is_leap: the century rule is the whole point of the function -------------
 
-expect Strftime.is_leap(2024) == Bool.True
-expect Strftime.is_leap(2023) == Bool.False
-expect Strftime.is_leap(2016) == Bool.True
-expect Strftime.is_leap(1999) == Bool.False
+expect TemporalStrftime.is_leap(2024) == Bool.True
+expect TemporalStrftime.is_leap(2023) == Bool.False
+expect TemporalStrftime.is_leap(2016) == Bool.True
+expect TemporalStrftime.is_leap(1999) == Bool.False
 # Divisible by 100 but not 400: NOT a leap year, the case a naive `% 4` misses.
-expect Strftime.is_leap(1900) == Bool.False
-expect Strftime.is_leap(2100) == Bool.False
+expect TemporalStrftime.is_leap(1900) == Bool.False
+expect TemporalStrftime.is_leap(2100) == Bool.False
 # Divisible by 400: a leap year after all.
-expect Strftime.is_leap(2000) == Bool.True
+expect TemporalStrftime.is_leap(2000) == Bool.True
 
 # -- day_of_week: ISO, Monday = 1 .. Sunday = 7 ------------------------------
 
-expect Strftime.day_of_week(2024, 3, 5) == 2    # Tuesday
-expect Strftime.day_of_week(1970, 1, 1) == 4    # Thursday
-expect Strftime.day_of_week(2000, 1, 1) == 6    # Saturday
-expect Strftime.day_of_week(1900, 1, 1) == 1    # Monday
-expect Strftime.day_of_week(1969, 7, 20) == 7   # Sunday — and 7, not 0
-expect Strftime.day_of_week(2024, 1, 1) == 1    # Monday
-expect Strftime.day_of_week(2024, 12, 31) == 2  # Tuesday
-expect Strftime.day_of_week(1999, 12, 31) == 5  # Friday
-expect Strftime.day_of_week(2023, 12, 31) == 7  # Sunday
+expect TemporalStrftime.day_of_week(2024, 3, 5) == 2    # Tuesday
+expect TemporalStrftime.day_of_week(1970, 1, 1) == 4    # Thursday
+expect TemporalStrftime.day_of_week(2000, 1, 1) == 6    # Saturday
+expect TemporalStrftime.day_of_week(1900, 1, 1) == 1    # Monday
+expect TemporalStrftime.day_of_week(1969, 7, 20) == 7   # Sunday — and 7, not 0
+expect TemporalStrftime.day_of_week(2024, 1, 1) == 1    # Monday
+expect TemporalStrftime.day_of_week(2024, 12, 31) == 2  # Tuesday
+expect TemporalStrftime.day_of_week(1999, 12, 31) == 5  # Friday
+expect TemporalStrftime.day_of_week(2023, 12, 31) == 7  # Sunday
 
 # January and February take Sakamoto's year-1 shift, so they are the months
 # where the leap rules actually bite.
-expect Strftime.day_of_week(2024, 2, 29) == 4   # Thursday
-expect Strftime.day_of_week(2000, 2, 29) == 2   # Tuesday
-expect Strftime.day_of_week(2016, 2, 29) == 1   # Monday
-expect Strftime.day_of_week(2000, 3, 1) == 3    # Wednesday
-expect Strftime.day_of_week(2100, 3, 1) == 1    # Monday — 2100 is not a leap year
+expect TemporalStrftime.day_of_week(2024, 2, 29) == 4   # Thursday
+expect TemporalStrftime.day_of_week(2000, 2, 29) == 2   # Tuesday
+expect TemporalStrftime.day_of_week(2016, 2, 29) == 1   # Monday
+expect TemporalStrftime.day_of_week(2000, 3, 1) == 3    # Wednesday
+expect TemporalStrftime.day_of_week(2100, 3, 1) == 1    # Monday — 2100 is not a leap year
 
 # -- day_of_year -------------------------------------------------------------
 
-expect Strftime.day_of_year(2024, 1, 1) == 1
-expect Strftime.day_of_year(2024, 3, 5) == 65
-expect Strftime.day_of_year(2024, 12, 31) == 366   # leap
-expect Strftime.day_of_year(2023, 12, 31) == 365   # common
-expect Strftime.day_of_year(2024, 2, 29) == 60
-expect Strftime.day_of_year(2000, 2, 29) == 60
+expect TemporalStrftime.day_of_year(2024, 1, 1) == 1
+expect TemporalStrftime.day_of_year(2024, 3, 5) == 65
+expect TemporalStrftime.day_of_year(2024, 12, 31) == 366   # leap
+expect TemporalStrftime.day_of_year(2023, 12, 31) == 365   # common
+expect TemporalStrftime.day_of_year(2024, 2, 29) == 60
+expect TemporalStrftime.day_of_year(2000, 2, 29) == 60
 # March 1st is where the leap adjustment shows: 61 in a leap year, 60 in a
 # common one, and 2100 is common despite being divisible by 100.
-expect Strftime.day_of_year(2000, 3, 1) == 61
-expect Strftime.day_of_year(2100, 3, 1) == 60
-expect Strftime.day_of_year(1900, 1, 1) == 1
+expect TemporalStrftime.day_of_year(2000, 3, 1) == 61
+expect TemporalStrftime.day_of_year(2100, 3, 1) == 60
+expect TemporalStrftime.day_of_year(1900, 1, 1) == 1
 
 # -- format: the directive table ---------------------------------------------
 
-expect Strftime.format(plain_dt(2024, 3, 5, 14, 7, 9), "%Y-%m-%d %H:%M:%S") == "2024-03-05 14:07:09"
-expect Strftime.format(plain_dt(2024, 3, 5, 14, 7, 9), "%F %T") == "2024-03-05 14:07:09"
-expect Strftime.format(plain_dt(2024, 3, 5, 14, 7, 9), "%j") == "065"
-expect Strftime.format(plain_date(2024, 3, 5), "%a %A %b %B") == "Tue Tuesday Mar March"
-expect Strftime.format(plain_date(2024, 3, 5), "%y") == "24"
-expect Strftime.format(plain_date(2024, 1, 1), "%Y-%m-%d") == "2024-01-01"
+expect TemporalStrftime.format(plain_dt(2024, 3, 5, 14, 7, 9), "%Y-%m-%d %H:%M:%S") == "2024-03-05 14:07:09"
+expect TemporalStrftime.format(plain_dt(2024, 3, 5, 14, 7, 9), "%F %T") == "2024-03-05 14:07:09"
+expect TemporalStrftime.format(plain_dt(2024, 3, 5, 14, 7, 9), "%j") == "065"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%a %A %b %B") == "Tue Tuesday Mar March"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%y") == "24"
+expect TemporalStrftime.format(plain_date(2024, 1, 1), "%Y-%m-%d") == "2024-01-01"
 
 # Literal text is carried through untouched, which is most of what a pattern is.
-expect Strftime.format(plain_date(2024, 3, 5), "on %B %d, %Y") == "on March 05, 2024"
-expect Strftime.format(plain_date(2024, 3, 5), "") == ""
-expect Strftime.format(plain_date(2024, 3, 5), "no directives here") == "no directives here"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "on %B %d, %Y") == "on March 05, 2024"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "") == ""
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "no directives here") == "no directives here"
 
 # %d is zero-padded, %e space-padded — the difference only shows below the 10th.
-expect Strftime.format(plain_date(2024, 3, 5), "%d") == "05"
-expect Strftime.format(plain_date(2024, 3, 5), "%e") == " 5"
-expect Strftime.format(plain_date(2024, 3, 15), "%d") == "15"
-expect Strftime.format(plain_date(2024, 3, 15), "%e") == "15"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%d") == "05"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%e") == " 5"
+expect TemporalStrftime.format(plain_date(2024, 3, 15), "%d") == "15"
+expect TemporalStrftime.format(plain_date(2024, 3, 15), "%e") == "15"
 
 # %I/%p: the 12-hour clock's two awkward hours are midnight and noon, where
 # the modulus gives 0 and the answer is 12.
-expect Strftime.format(plain_dt(2024, 3, 5, 14, 7, 9), "%I %p") == "02 PM"
-expect Strftime.format(plain_dt(2024, 3, 5, 0, 0, 0), "%I %p") == "12 AM"
-expect Strftime.format(plain_dt(2024, 3, 5, 12, 0, 0), "%I %p") == "12 PM"
-expect Strftime.format(plain_dt(2024, 3, 5, 23, 59, 59), "%I %p") == "11 PM"
-expect Strftime.format(plain_dt(2024, 3, 5, 11, 0, 0), "%I %p") == "11 AM"
+expect TemporalStrftime.format(plain_dt(2024, 3, 5, 14, 7, 9), "%I %p") == "02 PM"
+expect TemporalStrftime.format(plain_dt(2024, 3, 5, 0, 0, 0), "%I %p") == "12 AM"
+expect TemporalStrftime.format(plain_dt(2024, 3, 5, 12, 0, 0), "%I %p") == "12 PM"
+expect TemporalStrftime.format(plain_dt(2024, 3, 5, 23, 59, 59), "%I %p") == "11 PM"
+expect TemporalStrftime.format(plain_dt(2024, 3, 5, 11, 0, 0), "%I %p") == "11 AM"
 
 # Sub-second fields pad to their own widths, not to a shared one.
-expect Strftime.format(fractional(7, 123), "%L") == "007"
-expect Strftime.format(fractional(7, 123), "%N") == "000000123"
-expect Strftime.format(fractional(999, 999999999), "%L.%N") == "999.999999999"
+expect TemporalStrftime.format(fractional(7, 123), "%L") == "007"
+expect TemporalStrftime.format(fractional(7, 123), "%N") == "000000123"
+expect TemporalStrftime.format(fractional(999, 999999999), "%L.%N") == "999.999999999"
 
 # Escapes.
-expect Strftime.format(plain_date(2024, 3, 5), "100%%") == "100%"
-expect Strftime.format(plain_date(2024, 3, 5), "a%nb") == "a\nb"
-expect Strftime.format(plain_date(2024, 3, 5), "a%tb") == "a\tb"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "100%%") == "100%"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "a%nb") == "a\nb"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "a%tb") == "a\tb"
 
 # An unknown directive comes back verbatim rather than being eaten, so a typo
 # is visible in the output instead of silently shortening it.
-expect Strftime.format(plain_date(2024, 3, 5), "%Q") == "%Q"
-expect Strftime.format(plain_date(2024, 3, 5), "[%Q]") == "[%Q]"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%Q") == "%Q"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "[%Q]") == "[%Q]"
 
 # A plain date has no zone, so the zone directives render literally rather
 # than inventing UTC.
-expect Strftime.format(plain_date(2024, 3, 5), "%z") == "%z"
-expect Strftime.format(plain_date(2024, 3, 5), "%:z") == "%:z"
-expect Strftime.format(plain_date(2024, 3, 5), "%Z") == "%Z"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%z") == "%z"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%:z") == "%:z"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%Z") == "%Z"
 
 # With a zone, %z is compact and %:z punctuated; both carry the sign, and
 # both render a non-whole-hour offset correctly.
-expect Strftime.format(zoned(3600, "CET"), "%z") == "+0100"
-expect Strftime.format(zoned(3600, "CET"), "%:z") == "+01:00"
-expect Strftime.format(zoned(0, "UTC"), "%z") == "+0000"
-expect Strftime.format(zoned(-18000, "EST"), "%z") == "-0500"
-expect Strftime.format(zoned(-18000, "EST"), "%:z") == "-05:00"
-expect Strftime.format(zoned(19800, "IST"), "%z") == "+0530"
-expect Strftime.format(zoned(19800, "IST"), "%:z") == "+05:30"
-expect Strftime.format(zoned(-1800, "X"), "%:z") == "-00:30"
-expect Strftime.format(zoned(3600, "CET"), "%Z") == "CET"
+expect TemporalStrftime.format(zoned(3600, "CET"), "%z") == "+0100"
+expect TemporalStrftime.format(zoned(3600, "CET"), "%:z") == "+01:00"
+expect TemporalStrftime.format(zoned(0, "UTC"), "%z") == "+0000"
+expect TemporalStrftime.format(zoned(-18000, "EST"), "%z") == "-0500"
+expect TemporalStrftime.format(zoned(-18000, "EST"), "%:z") == "-05:00"
+expect TemporalStrftime.format(zoned(19800, "IST"), "%z") == "+0530"
+expect TemporalStrftime.format(zoned(19800, "IST"), "%:z") == "+05:30"
+expect TemporalStrftime.format(zoned(-1800, "X"), "%:z") == "-00:30"
+expect TemporalStrftime.format(zoned(3600, "CET"), "%Z") == "CET"
 
 # A year outside four digits keeps its sign in front of the padding, and %y
 # stays in 00-99 for a negative year (Python's `-44 % 100` is 56 as well).
-expect Strftime.format(plain_date(-44, 3, 15), "%Y") == "-0044"
-expect Strftime.format(plain_date(-44, 3, 15), "%y") == "56"
-expect Strftime.format(plain_date(12024, 3, 5), "%Y") == "12024"
-expect Strftime.format(plain_date(999, 3, 5), "%Y") == "0999"
-expect Strftime.format(plain_date(1, 3, 5), "%Y") == "0001"
+expect TemporalStrftime.format(plain_date(-44, 3, 15), "%Y") == "-0044"
+expect TemporalStrftime.format(plain_date(-44, 3, 15), "%y") == "56"
+expect TemporalStrftime.format(plain_date(12024, 3, 5), "%Y") == "12024"
+expect TemporalStrftime.format(plain_date(999, 3, 5), "%Y") == "0999"
+expect TemporalStrftime.format(plain_date(1, 3, 5), "%Y") == "0001"
 
 # A value wider than its pad is printed whole rather than truncated — and,
 # before the fix in `pad`, aborted the program with an integer underflow.
-expect Strftime.format(plain_date(12024, 3, 5), "%Y") == "12024"
-expect Strftime.format(plain_date(-12024, 3, 5), "%Y") == "-12024"
-expect Strftime.format(fractional(65535, 0), "%L") == "65535"
-expect Strftime.format(fractional(0, 4294967295), "%N") == "4294967295"
+expect TemporalStrftime.format(plain_date(12024, 3, 5), "%Y") == "12024"
+expect TemporalStrftime.format(plain_date(-12024, 3, 5), "%Y") == "-12024"
+expect TemporalStrftime.format(fractional(65535, 0), "%L") == "65535"
+expect TemporalStrftime.format(fractional(0, 4294967295), "%N") == "4294967295"
 
 # -- parse: the happy paths --------------------------------------------------
 #
 # Compared as whole `Parts`, not field by field, so a directive that also
 # writes a field it should not is caught.
 
-expect Strftime.parse("2024-03-05", "%Y-%m-%d") == Ok(plain_date(2024, 3, 5))
-expect Strftime.parse("2024-03-05 14:07:09", "%Y-%m-%d %H:%M:%S") == Ok(plain_dt(2024, 3, 5, 14, 7, 9))
-expect Strftime.parse("2024-03-05 14:07:09", "%F %T") == Ok(plain_dt(2024, 3, 5, 14, 7, 9))
-expect Strftime.parse("05/03/2024", "%d/%m/%Y") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024-03-05", "%Y-%m-%d") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024-03-05 14:07:09", "%Y-%m-%d %H:%M:%S") == Ok(plain_dt(2024, 3, 5, 14, 7, 9))
+expect TemporalStrftime.parse("2024-03-05 14:07:09", "%F %T") == Ok(plain_dt(2024, 3, 5, 14, 7, 9))
+expect TemporalStrftime.parse("05/03/2024", "%d/%m/%Y") == Ok(plain_date(2024, 3, 5))
 
 # A field the pattern never names stays at its zero; nothing is inferred.
-expect Strftime.parse("2024-03-05 14", "%Y-%m-%d %H") == Ok(plain_dt(2024, 3, 5, 14, 0, 0))
+expect TemporalStrftime.parse("2024-03-05 14", "%Y-%m-%d %H") == Ok(plain_dt(2024, 3, 5, 14, 0, 0))
 
 # %j resolves to month and day, and the year it is resolved against decides
 # whether day 60 is the 29th of February or the 1st of March.
-expect Strftime.parse("2024-065", "%Y-%j") == Ok(plain_date(2024, 3, 5))
-expect Strftime.parse("2024-060", "%Y-%j") == Ok(plain_date(2024, 2, 29))
-expect Strftime.parse("2023-060", "%Y-%j") == Ok(plain_date(2023, 3, 1))
-expect Strftime.parse("2024-366", "%Y-%j") == Ok(plain_date(2024, 12, 31))
-expect Strftime.parse("2023-365", "%Y-%j") == Ok(plain_date(2023, 12, 31))
-expect Strftime.parse("1900-365", "%Y-%j") == Ok(plain_date(1900, 12, 31))
+expect TemporalStrftime.parse("2024-065", "%Y-%j") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024-060", "%Y-%j") == Ok(plain_date(2024, 2, 29))
+expect TemporalStrftime.parse("2023-060", "%Y-%j") == Ok(plain_date(2023, 3, 1))
+expect TemporalStrftime.parse("2024-366", "%Y-%j") == Ok(plain_date(2024, 12, 31))
+expect TemporalStrftime.parse("2023-365", "%Y-%j") == Ok(plain_date(2023, 12, 31))
+expect TemporalStrftime.parse("1900-365", "%Y-%j") == Ok(plain_date(1900, 12, 31))
 
 # Month and weekday names are case-insensitive: case carries no information
 # here, and fixed-width reports upper-case them.
-expect Strftime.parse("2024 Mar 05", "%Y %b %d") == Ok(plain_date(2024, 3, 5))
-expect Strftime.parse("2024 MAR 05", "%Y %b %d") == Ok(plain_date(2024, 3, 5))
-expect Strftime.parse("2024 mar 05", "%Y %b %d") == Ok(plain_date(2024, 3, 5))
-expect Strftime.parse("2024 March 05", "%Y %B %d") == Ok(plain_date(2024, 3, 5))
-expect Strftime.parse("2024 MARCH 05", "%Y %B %d") == Ok(plain_date(2024, 3, 5))
-expect Strftime.parse("2024 December 05", "%Y %B %d") == Ok(plain_date(2024, 12, 5))
+expect TemporalStrftime.parse("2024 Mar 05", "%Y %b %d") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024 MAR 05", "%Y %b %d") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024 mar 05", "%Y %b %d") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024 March 05", "%Y %B %d") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024 MARCH 05", "%Y %B %d") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024 December 05", "%Y %B %d") == Ok(plain_date(2024, 12, 5))
 
 # A stated weekday is checked against the date the rest of the pattern built,
 # rather than parsed and dropped.
-expect Strftime.parse("Tue 2024-03-05", "%a %Y-%m-%d") == Ok(plain_date(2024, 3, 5))
-expect Strftime.parse("Tuesday 2024-03-05", "%A %Y-%m-%d") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("Tue 2024-03-05", "%a %Y-%m-%d") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("Tuesday 2024-03-05", "%A %Y-%m-%d") == Ok(plain_date(2024, 3, 5))
 
 # %I needs %p to mean anything, and the two ends of the 12-hour clock are
 # where the arithmetic is easy to get wrong.
-expect Strftime.parse("2024-03-05 02 PM", "%Y-%m-%d %I %p") == Ok(plain_dt(2024, 3, 5, 14, 0, 0))
-expect Strftime.parse("2024-03-05 02 AM", "%Y-%m-%d %I %p") == Ok(plain_dt(2024, 3, 5, 2, 0, 0))
-expect Strftime.parse("2024-03-05 12 AM", "%Y-%m-%d %I %p") == Ok(plain_dt(2024, 3, 5, 0, 0, 0))
-expect Strftime.parse("2024-03-05 12 PM", "%Y-%m-%d %I %p") == Ok(plain_dt(2024, 3, 5, 12, 0, 0))
-expect Strftime.parse("2024-03-05 11 pm", "%Y-%m-%d %I %p") == Ok(plain_dt(2024, 3, 5, 23, 0, 0))
+expect TemporalStrftime.parse("2024-03-05 02 PM", "%Y-%m-%d %I %p") == Ok(plain_dt(2024, 3, 5, 14, 0, 0))
+expect TemporalStrftime.parse("2024-03-05 02 AM", "%Y-%m-%d %I %p") == Ok(plain_dt(2024, 3, 5, 2, 0, 0))
+expect TemporalStrftime.parse("2024-03-05 12 AM", "%Y-%m-%d %I %p") == Ok(plain_dt(2024, 3, 5, 0, 0, 0))
+expect TemporalStrftime.parse("2024-03-05 12 PM", "%Y-%m-%d %I %p") == Ok(plain_dt(2024, 3, 5, 12, 0, 0))
+expect TemporalStrftime.parse("2024-03-05 11 pm", "%Y-%m-%d %I %p") == Ok(plain_dt(2024, 3, 5, 23, 0, 0))
 
 # %e accepts the space its formatter emits, and the unpadded two-digit form.
-expect Strftime.parse("2024-03- 5", "%Y-%m-%e") == Ok(plain_date(2024, 3, 5))
-expect Strftime.parse("2024-03-15", "%Y-%m-%e") == Ok(plain_date(2024, 3, 15))
+expect TemporalStrftime.parse("2024-03- 5", "%Y-%m-%e") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024-03-15", "%Y-%m-%e") == Ok(plain_date(2024, 3, 15))
 
 # POSIX's two-digit-year pivot: 00-68 are 2000s, 69-99 are 1900s.
-expect Strftime.parse("68-03-05", "%y-%m-%d") == Ok(plain_date(2068, 3, 5))
-expect Strftime.parse("69-03-05", "%y-%m-%d") == Ok(plain_date(1969, 3, 5))
-expect Strftime.parse("00-03-05", "%y-%m-%d") == Ok(plain_date(2000, 3, 5))
-expect Strftime.parse("99-03-05", "%y-%m-%d") == Ok(plain_date(1999, 3, 5))
+expect TemporalStrftime.parse("68-03-05", "%y-%m-%d") == Ok(plain_date(2068, 3, 5))
+expect TemporalStrftime.parse("69-03-05", "%y-%m-%d") == Ok(plain_date(1969, 3, 5))
+expect TemporalStrftime.parse("00-03-05", "%y-%m-%d") == Ok(plain_date(2000, 3, 5))
+expect TemporalStrftime.parse("99-03-05", "%y-%m-%d") == Ok(plain_date(1999, 3, 5))
 
 # Sub-second fields, and the escapes.
-expect Strftime.parse("2024-03-05 14:07:09.007", "%Y-%m-%d %H:%M:%S.%L") == Ok(fractional(7, 0))
-expect Strftime.parse("2024-03-05 100%", "%Y-%m-%d 100%%") == Ok(plain_date(2024, 3, 5))
-expect Strftime.parse("2024-03-05\n", "%Y-%m-%d%n") == Ok(plain_date(2024, 3, 5))
-expect Strftime.parse("2024-03-05\t", "%Y-%m-%d%t") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024-03-05 14:07:09.007", "%Y-%m-%d %H:%M:%S.%L") == Ok(fractional(7, 0))
+expect TemporalStrftime.parse("2024-03-05 100%", "%Y-%m-%d 100%%") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024-03-05\n", "%Y-%m-%d%n") == Ok(plain_date(2024, 3, 5))
+expect TemporalStrftime.parse("2024-03-05\t", "%Y-%m-%d%t") == Ok(plain_date(2024, 3, 5))
 
-expect Strftime.parse("2024-03-05 14:07:09.000000123", "%Y-%m-%d %H:%M:%S.%N") == Ok(fractional(0, 123))
+expect TemporalStrftime.parse("2024-03-05 14:07:09.000000123", "%Y-%m-%d %H:%M:%S.%N") == Ok(fractional(0, 123))
 
 # -- parse: the strict half --------------------------------------------------
 #
@@ -958,7 +958,7 @@ expect Strftime.parse("2024-03-05 14:07:09.000000123", "%Y-%m-%d %H:%M:%S.%N") =
 # data"). The message text is a diagnostic; pinning it would make every
 # rewording a failing test.
 
-err_kind : Try(Strftime.Parts, Strftime.Err) -> Str
+err_kind : Try(TemporalStrftime.Parts, TemporalStrftime.Err) -> Str
 err_kind = |r|
 	match r {
 		Ok(_) => "ok"
@@ -966,7 +966,7 @@ err_kind = |r|
 		Err(BadInput(_)) => "input"
 	}
 
-err_text : Try(Strftime.Parts, Strftime.Err) -> Str
+err_text : Try(TemporalStrftime.Parts, TemporalStrftime.Err) -> Str
 err_text = |r|
 	match r {
 		Ok(_) => "<parsed>"
@@ -975,55 +975,55 @@ err_text = |r|
 	}
 
 # Bad data. Every one of these is text that does not fit a fine pattern.
-expect err_kind(Strftime.parse("2024-03-05 and more", "%Y-%m-%d")) == "input"
-expect err_kind(Strftime.parse("2024/03/05", "%Y-%m-%d")) == "input"
-expect err_kind(Strftime.parse("2024-03", "%Y-%m-%d")) == "input"
-expect err_kind(Strftime.parse("", "%Y-%m-%d")) == "input"
-expect err_kind(Strftime.parse("20x4-03-05", "%Y-%m-%d")) == "input"
-expect err_kind(Strftime.parse("2024-3-5", "%Y-%m-%d")) == "input"
-expect err_kind(Strftime.parse("2024 Xyz 05", "%Y %b %d")) == "input"
-expect err_kind(Strftime.parse("2024-03-05 02 XX", "%Y-%m-%d %I %p")) == "input"
+expect err_kind(TemporalStrftime.parse("2024-03-05 and more", "%Y-%m-%d")) == "input"
+expect err_kind(TemporalStrftime.parse("2024/03/05", "%Y-%m-%d")) == "input"
+expect err_kind(TemporalStrftime.parse("2024-03", "%Y-%m-%d")) == "input"
+expect err_kind(TemporalStrftime.parse("", "%Y-%m-%d")) == "input"
+expect err_kind(TemporalStrftime.parse("20x4-03-05", "%Y-%m-%d")) == "input"
+expect err_kind(TemporalStrftime.parse("2024-3-5", "%Y-%m-%d")) == "input"
+expect err_kind(TemporalStrftime.parse("2024 Xyz 05", "%Y %b %d")) == "input"
+expect err_kind(TemporalStrftime.parse("2024-03-05 02 XX", "%Y-%m-%d %I %p")) == "input"
 
 # A trailing space is unconsumed input, not something to overlook.
-expect err_kind(Strftime.parse("2024-03-05 ", "%Y-%m-%d")) == "input"
+expect err_kind(TemporalStrftime.parse("2024-03-05 ", "%Y-%m-%d")) == "input"
 
 # %j out of range for the year it is resolved against. 366 is a date in 2024
 # and not one in 2023, which is the whole reason the check needs the year.
-expect err_kind(Strftime.parse("2023-366", "%Y-%j")) == "input"
-expect err_kind(Strftime.parse("2024-367", "%Y-%j")) == "input"
-expect err_kind(Strftime.parse("2024-000", "%Y-%j")) == "input"
-expect Strftime.parse("2024-366", "%Y-%j") == Ok(plain_date(2024, 12, 31))
+expect err_kind(TemporalStrftime.parse("2023-366", "%Y-%j")) == "input"
+expect err_kind(TemporalStrftime.parse("2024-367", "%Y-%j")) == "input"
+expect err_kind(TemporalStrftime.parse("2024-000", "%Y-%j")) == "input"
+expect TemporalStrftime.parse("2024-366", "%Y-%j") == Ok(plain_date(2024, 12, 31))
 
 # A weekday that contradicts the date is bad data, and the message names the
 # day the date actually falls on rather than only rejecting it.
-expect err_kind(Strftime.parse("Mon 2024-03-05", "%a %Y-%m-%d")) == "input"
-expect Str.contains(err_text(Strftime.parse("Mon 2024-03-05", "%a %Y-%m-%d")), "Tuesday")
-expect err_kind(Strftime.parse("Sunday 2024-03-05", "%A %Y-%m-%d")) == "input"
+expect err_kind(TemporalStrftime.parse("Mon 2024-03-05", "%a %Y-%m-%d")) == "input"
+expect Str.contains(err_text(TemporalStrftime.parse("Mon 2024-03-05", "%a %Y-%m-%d")), "Tuesday")
+expect err_kind(TemporalStrftime.parse("Sunday 2024-03-05", "%A %Y-%m-%d")) == "input"
 
 # Bad patterns. These are the caller's mistake, and none of them depends on
 # the input: a pattern that cannot describe a plain date is wrong before the
 # text is looked at.
-expect err_kind(Strftime.parse("03-05", "%m-%d")) == "pattern"
-expect err_kind(Strftime.parse("2024", "%Y")) == "pattern"
-expect err_kind(Strftime.parse("2024-03", "%Y-%m")) == "pattern"
-expect err_kind(Strftime.parse("14:07:09", "%T")) == "pattern"
+expect err_kind(TemporalStrftime.parse("03-05", "%m-%d")) == "pattern"
+expect err_kind(TemporalStrftime.parse("2024", "%Y")) == "pattern"
+expect err_kind(TemporalStrftime.parse("2024-03", "%Y-%m")) == "pattern"
+expect err_kind(TemporalStrftime.parse("14:07:09", "%T")) == "pattern"
 
 # The zone directives format but do not parse: plain fields have nowhere to
 # put a zone, so accepting one would mean silently dropping it.
-expect err_kind(Strftime.parse("2024-03-05 +0100", "%Y-%m-%d %z")) == "pattern"
-expect err_kind(Strftime.parse("2024-03-05 +01:00", "%Y-%m-%d %:z")) == "pattern"
-expect err_kind(Strftime.parse("2024-03-05 CET", "%Y-%m-%d %Z")) == "pattern"
+expect err_kind(TemporalStrftime.parse("2024-03-05 +0100", "%Y-%m-%d %z")) == "pattern"
+expect err_kind(TemporalStrftime.parse("2024-03-05 +01:00", "%Y-%m-%d %:z")) == "pattern"
+expect err_kind(TemporalStrftime.parse("2024-03-05 CET", "%Y-%m-%d %Z")) == "pattern"
 
-expect err_kind(Strftime.parse("2024-03-05", "%Y-%m-%d%Q")) == "pattern"
-expect err_kind(Strftime.parse("2024-03-05", "%Y-%m-%d%")) == "pattern"
+expect err_kind(TemporalStrftime.parse("2024-03-05", "%Y-%m-%d%Q")) == "pattern"
+expect err_kind(TemporalStrftime.parse("2024-03-05", "%Y-%m-%d%")) == "pattern"
 
 # -- round trips -------------------------------------------------------------
 #
 # The two halves are written independently, so agreeing is worth asserting
 # directly rather than inferring from the cases above.
 
-round_trip : Strftime.Parts, Str -> Bool
-round_trip = |p, pattern| Strftime.parse(Strftime.format(p, pattern), pattern) == Ok(p)
+round_trip : TemporalStrftime.Parts, Str -> Bool
+round_trip = |p, pattern| TemporalStrftime.parse(TemporalStrftime.format(p, pattern), pattern) == Ok(p)
 
 expect round_trip(plain_date(2024, 3, 5), "%Y-%m-%d")
 expect round_trip(plain_date(1900, 1, 1), "%Y-%m-%d")
@@ -1045,20 +1045,20 @@ expect round_trip(plain_dt(2024, 3, 5, 12, 0, 0), "%Y-%m-%d %I:%M:%S %p")
 
 # `%:` is only ever `%:z`; anything else is unknown. It used to be handed to
 # `emit`, which expanded a known directive AND echoed the byte on top.
-expect Strftime.format(plain_date(2024, 3, 5), "%:Y") == "%:Y"
-expect Strftime.format(plain_date(2024, 3, 5), "%:m") == "%:m"
-expect Strftime.format(plain_date(2024, 3, 5), "%:Q") == "%:Q"
-expect Strftime.format(plain_date(2024, 3, 5), "[%:Q]") == "[%:Q]"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%:Y") == "%:Y"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%:m") == "%:m"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%:Q") == "%:Q"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "[%:Q]") == "[%:Q]"
 
 # ...and `%:z` still resolves, with and without a zone.
-expect Strftime.format(zoned(3600, "CET"), "%:z") == "+01:00"
-expect Strftime.format(plain_date(2024, 3, 5), "%:z") == "%:z"
+expect TemporalStrftime.format(zoned(3600, "CET"), "%:z") == "+01:00"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%:z") == "%:z"
 
 # A pattern ending mid-directive keeps what it has. `parse` REJECTS the same
 # pattern, and that asymmetry is the design: formatting cannot fail, parsing
 # is the strict half.
-expect Strftime.format(plain_date(2024, 3, 5), "abc%") == "abc%"
-expect Strftime.format(plain_date(2024, 3, 5), "%") == "%"
-expect Strftime.format(plain_date(2024, 3, 5), "abc%:") == "abc%:"
-expect Strftime.format(plain_date(2024, 3, 5), "%:") == "%:"
-expect err_kind(Strftime.parse("2024-03-05", "%Y-%m-%d%")) == "pattern"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "abc%") == "abc%"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%") == "%"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "abc%:") == "abc%:"
+expect TemporalStrftime.format(plain_date(2024, 3, 5), "%:") == "%:"
+expect err_kind(TemporalStrftime.parse("2024-03-05", "%Y-%m-%d%")) == "pattern"

@@ -24,12 +24,21 @@ exports = ["Temporal", "TemporalHost", "Now", "NowHost"]
 # wiring says it has one, and a consumer can point it at their own component.
 [interfaces.temporal-now]
 
-# The pure-Roc layer over the hosted one (D-T1-1). `Strftime` is exported by
-# the COMPONENT so `Temporal` can import it, and deliberately absent from the
-# package's exports above: it is an implementation detail, not a surface.
+# The pure-Roc layer over the hosted one (D-T1-1). `TemporalStrftime` and
+# `TemporalPlain` are exported by the COMPONENT so `Temporal` can import them,
+# and deliberately absent from the package's exports above: they are
+# implementation details, not a surface.
+#
+# They carry the package's prefix all the same, as every sibling package's
+# private modules do (`GlobPattern`, `CsvParse`, `InternalHttp`). A component's
+# exports are written into the composed platform directory whether the package
+# exports them or not, and a second source for one platform module name is a
+# hard compose error — so a generic `Plain` or `Strftime` here would silently
+# claim those names for every world this package is in, with nothing in
+# `[package] exports` to warn the consumer.
 [components.temporal-lib]
 kind = "roc"
-exports = ["Temporal", "Strftime", "Plain", "Now"]
+exports = ["Temporal", "TemporalStrftime", "TemporalPlain", "Now"]
 
 [components.temporal-host]
 kind = "host"
