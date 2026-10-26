@@ -240,7 +240,7 @@ report! = |{}| {
 	l69 = "sod-min: ${sod!(Temporal.zoned_from_epoch_ns!(-8640000000000000000000, utc)?.start_of_day!())} ${sod!(Temporal.zoned_from_epoch_ns!(-8640000000000000000000, ny)?.start_of_day!())}"
 	# --- the calendar lives on the date: == sees it, compare does not, a
 	# --- difference across two calendars refuses, and arithmetic keeps it.
-	same = if jan31h == jan31 { "yes" } else { "no" }
+	same = yn(jan31h == jan31)
 	cross = match jan31h.until!(jan31) { Ok(_) => "accepted", Err(e) => tag(e) }
 	kept = Temporal.calendar_id!(jan31h.add!({ months: 1 })?.cal)
 	l70 = "date-calendar: eq=${same} cmp=${ord(jan31h.compare(jan31))} until=${cross} kept=${kept}"
