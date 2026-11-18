@@ -137,7 +137,7 @@ csv_refused = |text| {
 
 ## A `Toml.LocalDate` is not a `PlainDate`; its fields make one.
 from_toml_date : Toml.LocalDate -> Str
-from_toml_date = |date| "a Toml.LocalDate through plain_date_from_fields: ${Temporal.plain_date_from_fields(date).to_str()}"
+from_toml_date = |date| "a Toml.LocalDate through plain_date_from_fields: ${Temporal.plain_date_from_fields({ year: date.year, month: date.month, day: date.day }).to_str()}"
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {

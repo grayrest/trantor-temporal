@@ -241,8 +241,8 @@ config = Toml.decode("start = 2026-03-08\nreminder = 09:30:00")
 `Date` and `Time` in these signatures are the plain records
 `{ year : I32, month : U8, day : U8 }` and
 `{ hour : U8, minute : U8, second : U8, millisecond : U16, microsecond : U16, nanosecond : U16 }`;
-a `Toml.LocalDate` passes to `plain_date_from_fields`, though not to
-`plain_date`.
+a `Toml.LocalDate` is a nominal type, so it passes to neither: give
+`plain_date_from_fields` its fields (`{ year: d.year, month: d.month, day: d.day }`).
 
 ## Duration Units
 
@@ -270,7 +270,7 @@ new : { years : I64, months : I64, weeks : I64, days : I64, hours : I64, minutes
 Temporal.duration_from_str! : Str => Try(Duration, Err)   # "P1Y2M3D", "PT4H5M"
 
 # reading: `==` compares every field
-negate : Duration -> Duration                             # also Temporal.negate
+negate : Duration -> Duration
 is_zero : Duration -> Bool
 sign : Duration -> Sign                                   # [Negative, Zero, Positive]
 valid : Duration -> Bool                                  # every field shares a sign

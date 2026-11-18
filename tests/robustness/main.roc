@@ -92,7 +92,7 @@ records! = |{}| {
 			pick = |k| if k == f { v } else if k == 9 - f and f != 9 - f { 0 - 1 } else { 0 }
 			d = Temporal.Duration.new({ years: pick(0), months: pick(1), weeks: pick(2), days: pick(3), hours: pick(4), minutes: pick(5), seconds: pick(6), milliseconds: pick(7), microseconds: pick(8), nanoseconds: pick(9) })
 			results = [
-				d.to_str().is_ok(), d.valid(), d.is_zero(), d.sign() == Zero, d.negate().valid(), Temporal.negate(d).negate() == d,
+				d.to_str().is_ok(), d.valid(), d.is_zero(), d.sign() == Zero, d.negate().valid(), Temporal.Duration.negate(d).negate() == d,
 				valid.subtract!(d).is_ok(), zoned.subtract!(d).is_ok(),
 				d.round!({ largest: Day, smallest: Hour, mode: HalfExpand, increment: 1 }, Unanchored).is_ok(),
 				d.total!(Hour, ToDate(valid)).is_ok(), d.compare!(day, ToDate(valid)).is_ok(),
